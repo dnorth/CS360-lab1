@@ -22,10 +22,10 @@ int  main(int argc, char* argv[])
         nHostPort=atoi(argv[2]);
       }
 
-    printf("\nMaking a socket");
+    printf("\nMaking a socket.");
     /* make a socket */
     hSocket=socket(AF_INET,SOCK_STREAM,IPPROTO_TCP);
-
+    printf("\nSocket created.");
     if(hSocket == SOCKET_ERROR)
     {
         printf("\nCould not make a socket\n");
@@ -33,8 +33,10 @@ int  main(int argc, char* argv[])
     }
 
     /* get IP address from name */
+    printf("\nGetting Hostname.");
     pHostInfo=gethostbyname(strHostName);
     /* copy address into long */
+    printf("\nCopying.");
     memcpy(&nHostAddress,pHostInfo->h_addr,pHostInfo->h_length);
 
     /* fill address struct */
