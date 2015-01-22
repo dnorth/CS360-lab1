@@ -36,16 +36,23 @@ int  main(int argc, char* argv[])
     printf("\nGetting Hostname.");
     pHostInfo=gethostbyname(strHostName);
     /* copy address into long */
-    printf("\nCopying.");
+    printf("\nCopying."); 
     memcpy(&nHostAddress,pHostInfo->h_addr,pHostInfo->h_length);
-
+    printf("\nCopying1.");
     /* fill address struct */
     Address.sin_addr.s_addr=nHostAddress;
+    printf("\nCopying2.");
     Address.sin_port=htons(nHostPort);
+    printf("\nCopying3.");    
     Address.sin_family=AF_INET;
+    
+    string request = "GET " + /* url, 3rd arg */ + " HTTP/1.0\r\nHost: "+ strHostName + "\r\n\r\n";
+    char* rPointer = new char[request.length() + 1];
+    strcpy(rPointer, request.c_str());
 
+    printf("MY MY");
     printf("\nConnecting to %s (%X) on port %d",strHostName,nHostAddress,nHostPort);
-
+    printf("\nHOW ARE YOU?");
     /* connect to host */
     if(connect(hSocket,(struct sockaddr*)&Address,sizeof(Address))
        == SOCKET_ERROR)
@@ -57,10 +64,10 @@ int  main(int argc, char* argv[])
     /* read from socket into buffer
     ** number returned by read() and write() is the number of bytes
     ** read or written, with -1 being that an error occured */
-    nReadAmount=read(hSocket,pBuffer,BUFFER_SIZE);
+    //nReadAmount=read(hSocket,pBuffer,BUFFER_SIZE);
     printf("\nReceived \"%s\" from server\n",pBuffer);
     /* write what we received back to the server */
-    write(hSocket,pBuffer,nReadAmount);
+    write(hSocket,rPointer,nReadAmount);
     printf("\nWriting \"%s\" to server",pBuffer);
 
     printf("\nClosing socket\n");
