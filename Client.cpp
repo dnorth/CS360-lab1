@@ -29,7 +29,6 @@ void chomp(char *line)
 // You dont want to read too far, or you will mess up the content
 char * GetLine(int fds)
 {
-	printf("About to read a line.");
     char tline[MAX_MSG_SZ];
     char *line;
     
@@ -37,10 +36,14 @@ char * GetLine(int fds)
     int amtread = 0;
     while((amtread = read(fds, tline + messagesize, 255)) < MAX_MSG_SZ)
     {
-		printf("I'm trying to read");
         if (amtread > 0)
             messagesize += amtread;
-        else
+        else if (amtread == 0)
+		{
+			printf("Didn't read anything in.");
+			exit(2);
+		}
+		else
         {
             perror("Socket Error is:");
             fprintf(stderr, "Read Failed on file descriptor %d messagesize = %d\n", fds, messagesize);
@@ -196,7 +199,8 @@ int  main(int argc, char* argv[])
     ** number returned by read() and write() is the number of bytes
     ** read or written, with -1 being that an error occured */
 	
-    write(hSocket,rPointer,nReadAmount);
+    int w = write(hSocket,rPointer,255);
+	printf("wrote %d bytes", w);
     printf("\nWriting\n\"%s\" to server",rPointer);
 	char *startline = GetLine(hSocket);
 	printf("Status line %s\n\n",startline);
