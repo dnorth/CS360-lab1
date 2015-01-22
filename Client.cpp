@@ -198,13 +198,11 @@ int  main(int argc, char* argv[])
     ** number returned by read() and write() is the number of bytes
     ** read or written, with -1 being that an error occured */
 	
-    int w = write(hSocket,rPointer,request.length());
+    write(hSocket,rPointer,request.length());
 
     printf("\nWriting\n\"%s\" to server",rPointer);
-	char *startline = GetLine(hSocket);
-	printf("Status line %s\n\n",startline);
     
-	//GetHeaderLines(headerLines, hSocket, true);
+	GetHeaderLines(headerLines, hSocket, true);
 	
 	printf("\nClosing socket\n");
     /* close socket */
