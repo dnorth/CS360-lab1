@@ -185,6 +185,10 @@ int  main(int argc, char* argv[])
     char* rPointer = new char[request.length() + 1];
     strcpy(rPointer, request.c_str());
 
+    string request = "GET " + url  + " HTTP/1.1\r\nHost: "+ strHostName + "\r\nAccept: */*\r\nContent-Type: text/html\r\nContent-Length: 0\r\n\r\n"; 
+    char* rPointer = new char[request.length() + 1];
+    strcpy(rPointer, request.c_str());
+
     printf("\nConnecting to %s (%X) on port %d",strHostName,nHostAddress,nHostPort);
     /* connect to host */
     if(connect(hSocket,(struct sockaddr*)&Address,sizeof(Address))
@@ -201,12 +205,10 @@ int  main(int argc, char* argv[])
     int w = write(hSocket,rPointer,request.length());
 
     printf("\nWriting\n\"%s\" to server",rPointer);
-	char *startline = GetLine(hSocket);
-	printf("Status line %s\n\n",startline);
-    
-	//GetHeaderLines(headerLines, hSocket, true);
-	
-	printf("\nClosing socket\n");
+    GetHeaderLines(headerLines, hSocket, true);
+
+    printf("Status line %s\n\n",startline);      
+    printf("\nClosing socket\n");
     /* close socket */
     if(close(hSocket) == SOCKET_ERROR)
     {
