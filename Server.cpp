@@ -6,11 +6,24 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string>
+#include <fstream>
+#include <sstream>
 
 #define SOCKET_ERROR        -1
-#define BUFFER_SIZE         100
-#define MESSAGE             "This is the message I'm sending back and forth"
+#define BUFFER_SIZE         1024
 #define QUEUE_SIZE          5
+
+using namespace std;
+
+string get_file(char* file_path)
+{
+	ifstream ifs(file_path);
+	string content;
+	content.assign( (istreambuf_iterator<char>(ifs) ),
+                       (istreambuf_iterator<char>()    ) );
+    return content;
+}
 
 int main(int argc, char* argv[])
 {
@@ -18,8 +31,9 @@ int main(int argc, char* argv[])
     struct hostent* pHostInfo;   /* holds info about a machine */
     struct sockaddr_in Address; /* Internet socket address stuct */
     int nAddressSize=sizeof(struct sockaddr_in);
-    char pBuffer[BUFFER_SIZE];
     int nHostPort;
+    char* client_request;
+    char pBuffer[BUFFER_SIZE];
 
     if(argc < 2)
       {
@@ -84,29 +98,62 @@ int main(int argc, char* argv[])
         printf("\nWaiting for a connection\n");
         /* get the connected socket */
         hSocket=accept(hServerSocket,(struct sockaddr*)&Address,(socklen_t *)&nAddressSize);
+		
+       	if(hSocket < 0)
+       	{
+	  printf("ERROR: Could not accept connection");
+	  return 0;
+       	}
+       	else
+       	{
+	  //Add new task
+	  printf("\nGot a connection. Reading from the client.\n ");
+			
+	  read(hSocket,pBuffer,sizeof(pBuffer));
+	  char * request_type = strtok(pBuffer, " ");
+	  char * request_url = strtok(pBuffer, " ");
+	  char * request_host = strtok(pBuffer, " ");
+	  printf("Here is what I got: \n\n%s", pBuffer);
 
-    printf("\nGot a connection");
-        strcpy(pBuffer,MESSAGE);
-    printf("\nSending \"%s\" to client",pBuffer);
+	  printf("\n\nType: %s URL: %s Host: %s\n\n", request_type, request_url, request_host);
+			
+	  printf("Writing back.");
+			
+	  //I need to take in the URL from the client (parse the header) and find that file on my server
+	  //Once I find the file on the server I need to retrieve it and send it back with a 200
+			
+	  string contentType="text/html";
+	  char* filepath= "test1.html";
+	  string content= get_file(filepath);
+			
+	  ostringstream stream;
+			
+	  stream << "HTTP/1.1 200 OK\r\nMIME-Version:1.0\r\nContent-Type:" << contentType << "\r\nContent-Length:" << content.length() << "\r\n\r\n" << content; 
+			
+	  string response = stream.str();
+	  char* rPointer = new char[response.length() + 1];
+	  strcpy(rPointer, response.c_str());
+	  printf("Here is the response i'm sending: \n%s\n\n", rPointer);
+
+			
+	  write(hSocket, rPointer, response.length());
+	  printf("\nClosing the socket");
+	  /* close socket */
+	  memset(pBuffer, 0, sizeof(pBuffer));
+	  if(close(hSocket) == SOCKET_ERROR)
+	    {
+	      printf("\nCould not close socket\n");
+	      return 0;
+	    }
+	}
+        //strcpy(pBuffer,MESSAGE);
+		//printf("\nSending \"%s\" to client",pBuffer);
         /* number returned by read() and write() is the number of bytes
         ** read or written, with -1 being that an error occured
         ** write what we received back to the server */
-        write(hSocket,pBuffer,strlen(pBuffer)+1);
+        //write(hSocket,pBuffer,strlen(pBuffer)+1);
         /* read from socket into buffer */
-        memset(pBuffer,0,sizeof(pBuffer));
-        read(hSocket,pBuffer,BUFFER_SIZE);
+       // memset(pBuffer,0,sizeof(pBuffer));
 
-        if(strcmp(pBuffer,MESSAGE) == 0)
-            printf("\nThe messages match");
-        else
-            printf("\nSomething was changed in the message");
-
-    printf("\nClosing the socket");
-        /* close socket */
-        if(close(hSocket) == SOCKET_ERROR)
-        {
-         printf("\nCould not close socket\n");
-         return 0;
-        }
     }
 }

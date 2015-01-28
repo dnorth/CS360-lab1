@@ -34,16 +34,16 @@ char * GetLine(int fds)
     
     int messagesize = 0;
     int amtread = 0;
-    while((amtread = read(fds, tline + messagesize, 255)) < MAX_MSG_SZ)
+    while((amtread = read(fds, tline + messagesize, 1)) < MAX_MSG_SZ)
     {
         if (amtread > 0)
             messagesize += amtread;
         else if (amtread == 0)
-		{
-			printf("Didn't read anything in.");
-			exit(2);
-		}
-		else
+	{
+	    printf("Didn't read anything in.");
+ 	    exit(2);
+	}
+	else
         {
             perror("Socket Error is:");
             fprintf(stderr, "Read Failed on file descriptor %d messagesize = %d\n", fds, messagesize);
@@ -101,7 +101,6 @@ void GetHeaderLines(vector<char *> &headerLines, int skt, bool envformat)
     // Read the headers, look for specific ones that may change our responseCode
     char *line;
     char *tline;
-    
     tline = GetLine(skt);
     while(strlen(tline) != 0)
     {
@@ -127,8 +126,10 @@ void GetHeaderLines(vector<char *> &headerLines, int skt, bool envformat)
         
         headerLines.push_back(line);
         free(tline);
+       
         tline = GetLine(skt);
     }
+    
     free(tline);
 }
 
@@ -143,72 +144,164 @@ int  main(int argc, char* argv[])
     int nHostPort;
     string url; 
     vector<char *> headerLines;
+    char buffer[MAX_MSG_SZ];
+    char contentType[MAX_MSG_SZ];
 	
-    if(argc < 4)
-      {
-        printf("\nUsage: client host-name host-port url_to_file\n");
-        return 0;
-      }
-    else
-      {
-        strcpy(strHostName,argv[1]);
-        nHostPort=atoi(argv[2]);
-		url =  argv[3];
-      }
-
-    printf("\nMaking a socket.");
-    /* make a socket */
-    hSocket=socket(AF_INET,SOCK_STREAM,IPPROTO_TCP);
-    if(hSocket == SOCKET_ERROR)
-    {
-        printf("\nCould not make a socket\n");
-        return 0;
-    }
-	printf("\nSocket Created: %d" , hSocket);
-    /* get IP address from name */
-    printf("\nGetting Hostname.");
-    pHostInfo=gethostbyname(strHostName);
+	extern char *optarg;
+	int c, times_to_download= 1, err = 0, successCount = 0;
+	bool debug = false;
 	
-	if(pHostInfo == NULL)
+	if(argc < 4)
 	{
-		printf("\nInvalid hostname\n");
-		return 0;
+	    printf("\nUsage: client host-name host-port url\n");
+        return 0;
 	}
-    /* copy address into long */
-    memcpy(&nHostAddress,pHostInfo->h_addr,pHostInfo->h_length);
-    /* fill address struct */
-    Address.sin_addr.s_addr=nHostAddress;
-    Address.sin_port=htons(nHostPort);
-    Address.sin_family=AF_INET;
-    
-    string request = "GET " + url  + " HTTP/1.1\r\nHost: "+ strHostName + "\r\nAccept: */*\r\nContent-Type: text/html\r\nContent-Length: 0\r\n\r\n"; 
-    char* rPointer = new char[request.length() + 1];
-    strcpy(rPointer, request.c_str());
+	else
+	{
+		while( ( c = getopt( argc, argv, "c:d") ) != -1)
+		{
+			switch( c )
+			{
+				case 'c':
+					times_to_download = atoi( optarg );
+					break;
+				case 'd':
+					debug = true;
+					break;
+				case '?':
+					err = 1;
+					break;
+			}
+		}
 
-    printf("\nConnecting to %s (%X) on port %d",strHostName,nHostAddress,nHostPort);
-    /* connect to host */
-    if(connect(hSocket,(struct sockaddr*)&Address,sizeof(Address))
-       == SOCKET_ERROR)
-    {
-        printf("\nCould not connect to host\n");
-        return 0;
-    }
-
-    /* 
-    ** number returned by read() and write() is the number of bytes
-    ** read or written, with -1 being that an error occured */
+		strcpy(strHostName,argv[ optind]);
+		nHostPort=atoi(argv[optind + 1]);
+		url =  argv[optind + 2];
+	}
 	
-    write(hSocket,rPointer,request.length());
+	for(int i=0; i < times_to_download; i++)
+	{
+		bool success = true;
+		if(debug)
+		{
+			printf("\nMaking a socket.");
+		}
+		/* make a socket */
+		hSocket=socket(AF_INET,SOCK_STREAM,IPPROTO_TCP);
+		if(hSocket == SOCKET_ERROR)
+		{			
+			success = false;
+			printf("\nCould not make a socket\n");
+			return 0;
+		}
+		
+		if(debug)
+		{
+			printf("\nGetting Hostname.");
+		}
+		/* get IP address from name */
+		pHostInfo=gethostbyname(strHostName);
+		
+		if(pHostInfo == NULL)
+		{
+			success= false;
+			printf("\nInvalid Hostname.\n");
+			return 0;
+			
+		}
+		/* copy address into long */
+		memcpy(&nHostAddress,pHostInfo->h_addr,pHostInfo->h_length);
+		/* fill address struct */
+		Address.sin_addr.s_addr=nHostAddress;
+		Address.sin_port=htons(nHostPort);
+		Address.sin_family=AF_INET;
+		
+		string request = "GET " + url  + " HTTP/1.0\r\nHost: "+ strHostName + "\r\n\r\n"; 
+		char* rPointer = new char[request.length() + 1];
+		strcpy(rPointer, request.c_str());
 
-    printf("\nWriting\n\"%s\" to server",rPointer);
-    
-	GetHeaderLines(headerLines, hSocket, true);
+		if(debug)
+		{
+			printf("\nConnecting to %s (%X) on port %d",strHostName,nHostAddress,nHostPort);
+		}
+		/* connect to host */
+		if(connect(hSocket,(struct sockaddr*)&Address,sizeof(Address))
+		   == SOCKET_ERROR)
+		{
+			printf("\nCould not connect to Host.\n");
+			success= false;
+			return 0;
+		}
+
+		/* 
+		** number returned by read() and write() is the number of bytes
+		** read or written, with -1 being that an error occured */
+		
+		write(hSocket,rPointer,request.length());
+
+		if(debug)
+		{
+			printf("\n=======================\n");
+			printf("\nWriting: \n%s",rPointer);
+			printf("=======================\n");
+		}
+		
+		// Read the header lines
+		GetHeaderLines(headerLines, hSocket , false);
+
+	  
+		  
+		if(debug)
+		{
+			printf("\nHeaders: \n");
+			for (int i = 0; i < headerLines.size(); i++) 
+			{
+				printf("[%d] %s\n",i,headerLines[i]);
+				if(strstr(headerLines[i], "Content-Type")) 
+				{
+					sscanf(headerLines[i], "Content-Type: %s", contentType);
+				}
+			}
+
+			printf("\n=======================\n");
+			printf("Headers are finished, now reading the file\n");
+			printf("Content Type is %s\n",contentType);
+			printf("=======================\n\n");
+			
+		}
+	  
+		// read and print the rest of the file
+		int rval;
+		while((rval = read(hSocket,buffer,MAX_MSG_SZ)) > 0)
+		{
+			if(times_to_download == 1)
+			{
+				write(1,buffer,rval);
+			}
+		}
+		
+		headerLines.clear();
+		
+		if(debug)
+		{
+			printf("\nClosing socket.\n\n");
+		}
+		/* close socket */
+		if(close(hSocket) == SOCKET_ERROR)
+		{
+			success = false;
+			printf("\nCould not close Socket.\n");
+			return 0;
+		}
+		
+		if(success)
+		{
+			successCount++;
+		}
+	}
 	
-	printf("\nClosing socket\n");
-    /* close socket */
-    if(close(hSocket) == SOCKET_ERROR)
-    {
-        printf("\nCould not close socket\n");
-        return 0;
-    }
+	if(times_to_download > 1)
+	{
+		printf("Downloaded %d times.\n\n", successCount);
+	}
 }
