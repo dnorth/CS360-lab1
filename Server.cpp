@@ -9,6 +9,9 @@
 #include <string>
 #include <fstream>
 #include <sstream>
+#include <sys/sendfile.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 
 #define SOCKET_ERROR        -1
 #define BUFFER_SIZE         1024
@@ -31,12 +34,14 @@ string get_file(char* file_path, string serving_dir)
 		file_path++;
 	}
 	
+	/*
 	if(serving_dir != "/" || serving_dir !=".")
 	{
 		printf("\n\nTHIS RIGHT HERE RIGHT NOW- SERVING DIR: %s\n\n", serving_dir.c_str());
 		string s= serving_dir + "/" + file_path;
 		copy(s.begin(), s.end(), file_path);
 	}
+	*/
 	try{
 		//Set the mode to be binary
 		ifstream ifs(file_path, ios::in | ios::binary);
@@ -56,7 +61,7 @@ string get_contentType(string filename)
 {
 	string filetype= " ";
 	
-	if(filetype.length() > 4)
+	if(filename.length() > 4)
 	{
 		string file_end = filename.substr( filename.size()-4,4);
 		
@@ -91,6 +96,8 @@ int main(int argc, char* argv[])
     char* client_request;
     char pBuffer[BUFFER_SIZE];
     string serving_dir;
+    
+    struct stat filestat;
 
     if(argc < 3)
       {
@@ -100,7 +107,7 @@ int main(int argc, char* argv[])
     else
       {
         nHostPort=atoi(argv[1]);
-        serving_dir = argv[2];
+        //serving_dir = argv[2];
       }
 
     printf("\nStarting server");
@@ -183,8 +190,8 @@ int main(int argc, char* argv[])
 				
 		  string content= get_file(request_filepath, serving_dir);
 		  string contentType = get_contentType(request_filepath);
-				
-				
+		  				
+		  printf("\n\nContent Type: %s \n\nContent: %s", contentType.c_str(), content.c_str());	
 		  ostringstream stream;	
 		  
 		  stream << "HTTP/1.1 ";
@@ -194,16 +201,19 @@ int main(int argc, char* argv[])
 		  }
 		  else
 		  {
-			  stream << "200 OK\r\nMIME-Version:1.0\r\nContent-Type:" << contentType << "\r\nContent-Length:" << content.length() << "\r\n\r\n" << content;
+			  stream << "200 OK\r\nMIME-Version:1.0\r\nContent-Type:" << contentType << "\r\nContent-Length:" << content.length() << "\r\n\r\n";// << content;
 		  }
 				
 		  string response = stream.str();
 		  char* rPointer = new char[response.length() + 1];
 		  strcpy(rPointer, response.c_str());
-		  printf("\nHere is the response i'm sending: \n%s\n\n", rPointer);
-
-				
+		  
+		  //Gets rid of the "/" before the filepath
+		  request_filepath++;
+		  				
 		  write(hSocket, rPointer, response.length());
+		  sendfile(hSocket, open(request_filepath, O_RDONLY), NULL,  filestat.st_size);
+		  
 		  printf("\nClosing the socket");
 		  /* close socket */
 		  memset(pBuffer, 0, sizeof(pBuffer));
