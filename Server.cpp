@@ -14,36 +14,68 @@
 #define BUFFER_SIZE         1024
 #define QUEUE_SIZE          5
 
+#pragma GCC diagnostic ignored "-Wwrite-strings"
+
 using namespace std;
 
-string get_file(char* file_path)
+string get_file(char* file_path, string serving_dir)
 {
-	//Set the mode to be binary
-	ifstream ifs(file_path, ios::in | ios::binary);
-	string content;
-	content.assign( (istreambuf_iterator<char>(ifs) ),
-                       (istreambuf_iterator<char>()    ) );
-    return content;
+	//gets rid of the "/" before trying to find the file
+	if(strcmp(file_path,"/") == 0 || strcmp(file_path, "") == 0)
+	{
+		//Try to find index, if not then display directory
+		file_path = "index.html";
+	}
+	else
+	{
+		file_path++;
+	}
+	
+	if(serving_dir != "/" || serving_dir !=".")
+	{
+		printf("\n\nTHIS RIGHT HERE RIGHT NOW- SERVING DIR: %s\n\n", serving_dir.c_str());
+		string s= serving_dir + "/" + file_path;
+		copy(s.begin(), s.end(), file_path);
+	}
+	try{
+		//Set the mode to be binary
+		ifstream ifs(file_path, ios::in | ios::binary);
+		string content;
+		content.assign( (istreambuf_iterator<char>(ifs) ),
+						   (istreambuf_iterator<char>()    ) );
+		return content;
+	}
+	catch(int e)
+	{
+		printf("\nCouldn't get it. Error: %d\n", e);
+		return "";
+	}
 }
 
 string get_contentType(string filename)
 {
-	string file_end = filename.substr( filename.size()-4,4);
 	string filetype= " ";
-	switch(file_end)
+	
+	if(filetype.length() > 4)
 	{
-		case "html":
+		string file_end = filename.substr( filename.size()-4,4);
+		
+		if(file_end == "html")
+		{
 			filetype="text/html";
-			break;
-		case ".txt":
+		}
+		else if(file_end == ".txt")
+		{
 			filetype="text/plain";
-			break;
-		case ".jpg":
+		}
+		else if(file_end == ".jpg")
+		{
 			filetype="image/jpg";
-			break;
-		case ".gif":
+		}
+		else if(file_end == ".gif")
+		{
 			filetype="image/gif";
-			break;
+		}
 	}
 	
 	return filetype;
@@ -58,15 +90,17 @@ int main(int argc, char* argv[])
     int nHostPort;
     char* client_request;
     char pBuffer[BUFFER_SIZE];
+    string serving_dir;
 
-    if(argc < 2)
+    if(argc < 3)
       {
-        printf("\nUsage: server host-port\n");
+        printf("\nUsage: server host-port serving-dir\n");
         return 0;
       }
     else
       {
         nHostPort=atoi(argv[1]);
+        serving_dir = argv[2];
       }
 
     printf("\nStarting server");
@@ -142,34 +176,31 @@ int main(int argc, char* argv[])
 
 			printf("\n\nType: %s URL: %s", request_type, request_filepath);
 			
-			printf("Writing back.");
+			printf("\n\nWriting back.\n");
 			
 		  //I need to take in the URL from the client (parse the header) and find that file on my server
 		  //Once I find the file on the server I need to retrieve it and send it back with a 200
 				
-		  char* filepath= "test4.jpg";
-		  string content= get_file(request_filepath);
+		  string content= get_file(request_filepath, serving_dir);
 		  string contentType = get_contentType(request_filepath);
 				
-		  if(contentType == " ")
-		  {
-			printf("\nInvalid Content Type.\n");
-			memset(pBuffer, 0, sizeof(pBuffer));
-			if(close(hSocket) == SOCKET_ERROR)
-			{
-			  printf("\nCould not close socket\n");
-			  return 0;
-			}
-			return 0;
-		  }
-		  
+				
 		  ostringstream stream;	
-		  stream << "HTTP/1.1 200 OK\r\nMIME-Version:1.0\r\nContent-Type:" << contentType << "\r\nContent-Length:" << content.length() << "\r\n\r\n" << content; 
+		  
+		  stream << "HTTP/1.1 ";
+		  if(contentType == " " || content == "")
+		  {
+			  stream << "404 Not Found\r\nMIME-Version:1.0\r\nContent-Type:text/html\r\nContent-Length:9\r\n\r\nNOT FOUND";
+		  }
+		  else
+		  {
+			  stream << "200 OK\r\nMIME-Version:1.0\r\nContent-Type:" << contentType << "\r\nContent-Length:" << content.length() << "\r\n\r\n" << content;
+		  }
 				
 		  string response = stream.str();
 		  char* rPointer = new char[response.length() + 1];
 		  strcpy(rPointer, response.c_str());
-		  printf("Here is the response i'm sending: \n%s\n\n", rPointer);
+		  printf("\nHere is the response i'm sending: \n%s\n\n", rPointer);
 
 				
 		  write(hSocket, rPointer, response.length());
@@ -182,14 +213,5 @@ int main(int argc, char* argv[])
 			  return 0;
 			}
 		}
-			//strcpy(pBuffer,MESSAGE);
-			//printf("\nSending \"%s\" to client",pBuffer);
-			/* number returned by read() and write() is the number of bytes
-			** read or written, with -1 being that an error occured
-			** write what we received back to the server */
-			//write(hSocket,pBuffer,strlen(pBuffer)+1);
-			/* read from socket into buffer */
-		   // memset(pBuffer,0,sizeof(pBuffer));
-
     }
 }
